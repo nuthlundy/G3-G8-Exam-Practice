@@ -1,0 +1,6 @@
+{
+  "name": "Grade 3 Term Exam Practice",
+  "description": "Reusable Grade 3 term examination practice platform with Exam Pointer mapping, verified source extraction, teacher question review, and student practice tests.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
