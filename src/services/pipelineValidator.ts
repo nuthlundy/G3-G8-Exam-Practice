@@ -113,7 +113,8 @@ export class PipelineValidator {
     ) {
       errors.push('Correct answer is required.');
     }
-    if (question.questionType === 'multiple_choice') {
+    const qTypeLower = String(question.questionType || '').toLowerCase();
+    if (qTypeLower === 'multiple_choice' || qTypeLower === 'mcq') {
       if (!question.options || question.options.length < 2) {
         errors.push('Multiple-choice questions must have at least 2 options.');
       } else if (!question.options.includes(question.correctAnswer)) {

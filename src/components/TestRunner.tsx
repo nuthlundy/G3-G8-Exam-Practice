@@ -188,14 +188,64 @@ export const TestRunner: React.FC<TestRunnerProps> = ({
     return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
   };
 
-  const normalizeAnswer = (val: any) => {
-    let str = String(val || '').trim().toLowerCase();
+  const normalizeAnswer = (val: any): string => {
+    if (val === undefined || val === null) return '';
+    let str = String(val).trim().toLowerCase();
+
+    // Normalize Unicode apostrophes and quotation marks
+    str = str.replace(/[\u2018\u2019\u00B1]/g, "'");
+    str = str.replace(/[\u201C\u201D]/g, '"');
+
     // Normalize Khmer numerals to Arabic digits for numerical comparisons (០-៩ -> 0-9)
     const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
     khmerDigits.forEach((kd, idx) => {
       str = str.replaceAll(kd, String(idx));
     });
+
+    // Collapse multiple consecutive whitespace
+    str = str.replace(/\s+/g, ' ');
+
     return str;
+  };
+
+  const evaluateQuestionAnswer = (q: Question, userAns: any): boolean => {
+    if (userAns === undefined || userAns === null) return false;
+
+    const qTypeLower = String(q.questionType || '').toLowerCase();
+
+    if (qTypeLower === 'matching') {
+      const correctDict = (q.correctAnswer || {}) as Record<string, string>;
+      const userDict = (userAns || {}) as Record<string, string>;
+      const keys = Object.keys(correctDict);
+      if (keys.length === 0) return false;
+      const matches = keys.filter(
+        (k) => normalizeAnswer(userDict[k]) === normalizeAnswer(correctDict[k])
+      );
+      return matches.length === keys.length;
+    }
+
+    const normUser = normalizeAnswer(userAns);
+    const normCorrect = normalizeAnswer(q.correctAnswer);
+
+    if (normUser === normCorrect) return true;
+
+    // Handle case where correctAnswer might be option letter or index
+    if (Array.isArray(q.options) && q.options.length > 0) {
+      if (['a', 'b', 'c', 'd'].includes(normCorrect) && normCorrect.length === 1) {
+        const idx = normCorrect.charCodeAt(0) - 97;
+        if (q.options[idx]) {
+          return normUser === normalizeAnswer(q.options[idx]);
+        }
+      }
+      if (/^\d+$/.test(normCorrect)) {
+        const idx = parseInt(normCorrect, 10);
+        if (q.options[idx]) {
+          return normUser === normalizeAnswer(q.options[idx]);
+        }
+      }
+    }
+
+    return false;
   };
 
   const handleSubmitTest = () => {
@@ -204,19 +254,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({
 
     questions.forEach((q) => {
       const userAns = answers[q.id];
-      let isCorrect = false;
-
-      if (q.questionType === 'multiple_choice' || q.questionType === 'true_false') {
-        isCorrect = normalizeAnswer(userAns) === normalizeAnswer(q.correctAnswer);
-      } else if (q.questionType === 'calculation' || q.questionType === 'fill_in_blank') {
-        isCorrect = normalizeAnswer(userAns) === normalizeAnswer(q.correctAnswer);
-      } else if (q.questionType === 'matching') {
-        const correctDict = q.correctAnswer as Record<string, string>;
-        const userDict = (userAns || {}) as Record<string, string>;
-        const keys = Object.keys(correctDict);
-        const matches = keys.filter((k) => userDict[k] === correctDict[k]);
-        isCorrect = matches.length === keys.length;
-      }
+      const isCorrect = evaluateQuestionAnswer(q, userAns);
 
       if (isCorrect) {
         score += 1;
